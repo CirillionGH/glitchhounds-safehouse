@@ -1,20 +1,20 @@
 // GlitchHounds Safehouse - Complete Unified Stream Overlay (Phaser 3)
-// Updated: Replaced static slot indexes with a dynamic anti-stacking wander algorithm. Every time a user sends a message, the overlay calculates a fresh, well-spaced randomized position around the target room's center, ensuring avatars actively step/move to a new location on every message while completely avoiding collisions.
+// Updated: Fixed global socket reference error and ensured seamless WebSocket integration.
 
 // ==========================================
 // GLOBAL WEBSOCKET INITIALIZATION
 // ==========================================
-const socket = new WebSocket('wss://glitchhounds-safehouse.onrender.com');
+window.socket = new WebSocket('wss://glitchhounds-safehouse.onrender.com');
 
-socket.onopen = () => {
+window.socket.onopen = () => {
     console.log('⚡ Overlay connected to GlitchHounds Safehouse!');
 };
 
-socket.onclose = () => {
+window.socket.onclose = () => {
     console.log('🔌 Disconnected from WebSocket server.');
 };
 
-socket.onerror = (error) => {
+window.socket.onerror = (error) => {
     console.error('❌ WebSocket error:', error);
 };
 
@@ -64,7 +64,7 @@ const CHANNEL_ALIASES = {
 
 const userAvatars = {};
 const pendingAvatarLoads = {};
-const roomOccupants = {}; // Tracks active occupant arrays per room for lighting and spacing
+const roomOccupants = {};
 const roomLightingGlows = {};
 let overlayLayer = null;
 
@@ -228,6 +228,7 @@ function create() {
         if (pointer.event.target && pointer.event.target.closest('#audio-control-widget')) return;
     });
 
+    const socket = window.socket;
     socket.onmessage = (event) => {
         try {
             const data = JSON.parse(event.data);
@@ -718,7 +719,6 @@ function resetInactivityTimer(scene, avatar, userId) {
 }
 
 function moveAvatarToRoom(scene, avatar, targetRoom, itemKey, userId) {
-    // Update room occupancy records
     if (avatar.currentRoomKey && avatar.currentRoomKey !== itemKey) {
         if (roomOccupants[avatar.currentRoomKey]) {
             roomOccupants[avatar.currentRoomKey] = roomOccupants[avatar.currentRoomKey].filter(id => id !== userId);
@@ -734,8 +734,6 @@ function moveAvatarToRoom(scene, avatar, targetRoom, itemKey, userId) {
         roomOccupants[itemKey].push(userId);
     }
 
-    // Generate a dynamic, non-overlapping random wander position around the room center 
-    // so every single message causes the avatar to step/shift to a fresh location.
     let bestX = targetRoom.x;
     let bestY = targetRoom.y;
     let maxDist = -1;
@@ -767,7 +765,6 @@ function moveAvatarToRoom(scene, avatar, targetRoom, itemKey, userId) {
         }
     }
 
-    // Active speaker foreground tier (20000+)
     avatar.setDepth(20000 + (speakerOrderCounter++));
 
     playUiSound('shift');
