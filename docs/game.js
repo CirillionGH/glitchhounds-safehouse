@@ -211,7 +211,7 @@ function create() {
     if (pointer.event.target && pointer.event.target.closest('#audio-control-widget')) return;
   });
 
-  const socket = new WebSocket('ws://localhost:8080');
+    const ws = new WebSocket('wss://glitchhounds-safehouse.onrender.com');
 
   socket.onopen = () => {
     console.log('⚡ Overlay connected to GlitchHounds Safehouse!');
