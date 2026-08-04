@@ -1,5 +1,5 @@
 // GlitchHounds Safehouse - Complete Unified Stream Overlay (Phaser 3)
-// Updated: Fixed global socket reference error and ensured seamless WebSocket integration.
+// Updated: Fixed AudioContext autoplay warning by safely waiting for user interaction.
 
 // ==========================================
 // GLOBAL WEBSOCKET INITIALIZATION
@@ -138,9 +138,13 @@ function playUiSound(type) {
     try {
         const ctx = getAudioContext();
         if (!ctx) return;
+
+        // Safely handle browser autoplay policy: if context is suspended, resume it and skip this sound instance
         if (ctx.state === 'suspended') {
             ctx.resume().catch(() => { });
+            return;
         }
+        if (ctx.state !== 'running') return;
 
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
@@ -226,6 +230,10 @@ function create() {
 
     scene.input.on('pointerdown', (pointer) => {
         if (pointer.event.target && pointer.event.target.closest('#audio-control-widget')) return;
+        const ctx = getAudioContext();
+        if (ctx && ctx.state === 'suspended') {
+            ctx.resume().catch(() => { });
+        }
     });
 
     const socket = window.socket;
@@ -791,10 +799,14 @@ function moveAvatarToRoom(scene, avatar, targetRoom, itemKey, userId) {
         onComplete: () => {
             trailEmitter.stop();
             scene.time.delayedCall(600, () => {
-                trailEmitter.destroy();
+                trailImporterCleanup(trailEmitter);
             });
         }
     });
+}
+
+function trailImporterCleanup(emitter) {
+    if (emitter) emitter.destroy();
 }
 
 function update() {
